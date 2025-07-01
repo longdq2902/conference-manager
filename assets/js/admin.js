@@ -60,7 +60,7 @@ jQuery(document).ready(function($) {
                     $('#toc-builder-list li[data-doc-index="' + oldIndex + '"]').attr('data-doc-index', newIndex);
                 }
             });
-            // Không cần gọi updateHiddenTocField() ở đây nữa
+            updateHiddenTocField();
         }
     });
 
@@ -101,6 +101,7 @@ jQuery(document).ready(function($) {
         logo_frame.open();
     });
 
+
     // -------------------------------------------------------------------------
     // ---- PHẦN 4: XÂY DỰNG MỤC LỤC (TOC) ----
     // -------------------------------------------------------------------------
@@ -115,17 +116,11 @@ jQuery(document).ready(function($) {
         $('#cm_toc_items_hidden').val(JSON.stringify(tocItems));
     }
 
-    // Các sự kiện chỉ cần xử lý giao diện, không cần gọi updateHiddenTocField()
-    $("#toc-builder-list").sortable({ handle: ".handle" }).disableSelection();
-    $('#toc-builder-list').on('click', '.remove-toc-item', function() { if (confirm('Bạn có chắc muốn xóa mục này khỏi mục lục?')) { $(this).closest('li').remove(); } });
-    $('#confirm-add-document-btn').on('click', function() {
-        var selectedIndex = $('#document-selector').val();
-        if (!selectedIndex) { alert('Vui lòng chọn một tài liệu.'); return; }
-        var docName = $('#cm-documents-list li').eq(selectedIndex).find('span').first().text();
-        var newItem = '<li data-doc-index="' + selectedIndex + '"><span class="dashicons dashicons-menu handle"></span><input type="text" value="' + docName + '" placeholder="' + docName + '"><button type="button" class="button button-link-delete remove-toc-item"><span class="dashicons dashicons-trash"></span></button></li>';
-        $('#toc-builder-list').append(newItem);
-        $('#document-selector-wrapper').slideUp();
-    });
+    $("#toc-builder-list").sortable({ handle: ".handle", stop: function() { updateHiddenTocField(); } }).disableSelection();
+    $('#toc-builder-wrapper').on('change keyup', 'input[type="text"]', function() { updateHiddenTocField(); });
+    $('#toc-builder-list').on('click', '.remove-toc-item', function() { if (confirm('Bạn có chắc muốn xóa mục này khỏi mục lục?')) { $(this).closest('li').remove(); updateHiddenTocField(); } });
+    
+    // --- BỔ SUNG LẠI LOGIC CÒN THIẾU ---
     $('#add-to-toc-btn').on('click', function() {
         var selector = $('#document-selector');
         selector.empty().append('<option value="">-- Chọn một tài liệu --</option>');
@@ -144,7 +139,19 @@ jQuery(document).ready(function($) {
         if (!added) { alert('Tất cả tài liệu đã được thêm.'); return; }
         $('#document-selector-wrapper').slideDown();
     });
+    // --- KẾT THÚC BỔ SUNG ---
+
+    $('#confirm-add-document-btn').on('click', function() {
+        var selectedIndex = $('#document-selector').val();
+        if (!selectedIndex) { alert('Vui lòng chọn một tài liệu.'); return; }
+        var docName = $('#cm-documents-list li').eq(selectedIndex).find('span').first().text();
+        var newItem = '<li data-doc-index="' + selectedIndex + '"><span class="dashicons dashicons-menu handle"></span><input type="text" value="' + docName + '" placeholder="' + docName + '"><button type="button" class="button button-link-delete remove-toc-item"><span class="dashicons dashicons-trash"></span></button></li>';
+        $('#toc-builder-list').append(newItem);
+        $('#document-selector-wrapper').slideUp();
+        updateHiddenTocField();
+    });
     $('#cancel-add-document-btn').on('click', function() { $('#document-selector-wrapper').slideUp(); });
+
 
     // -------------------------------------------------------------------------
     // ---- PHẦN 5: REPEATER CHO SUB-LOGO TEXTS ----
@@ -152,29 +159,51 @@ jQuery(document).ready(function($) {
     $('#cm-add-repeater-item').on('click', function() {
         var wrapper = $('#cm-sub-logo-texts-wrapper');
         var index = wrapper.find('.cm-repeater-item').length;
-
+        var fontSelectHTML = $('#cm_logo_title_font_family').clone().prop('outerHTML');
+        fontSelectHTML = fontSelectHTML
+            .replace('name="cm_logo_title_font_family"', 'name="cm_sub_logo_texts[' + index + '][font_family]"')
+            .replace('id="cm_logo_title_font_family"', 'id="cm_sub_logo_texts_' + index + '_font_family"');
+        // var newItemHTML =
+        //     '<div class="cm-repeater-item" style="border: 1px dashed #ccc; padding: 10px; margin-top: 10px; position: relative;">' +
+        //         '<button type="button" class="button button-link-delete cm-remove-repeater-item" style="position: absolute; top: 5px; right: 5px; color: #a00;">Remove</button>' +
+        //         '<p><label><strong>Text Content:</strong></label><br><input type="text" name="cm_sub_logo_texts[' + index + '][text]" style="width:100%;" /></p>' +
+        //         '<div style="display: flex; gap: 10px; align-items: flex-end;">' +
+        //             '<p style="flex:2;"><label>Font Family:</label><br>' + fontSelectHTML + '</p>' +
+        //             '<p style="flex:1;"><label>Font Size:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_size]" /></p>' +
+        //             '<p style="flex:1;"><label>Font Weight:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_weight]" /></p>' +
+        //             '<p style="flex:1;"><label>Font Color:</label><br><input type="color" name="cm_sub_logo_texts[' + index + '][font_color]" /></p>' +
+        //             '<p style="flex:1;"><label>Alignment:</label><br>' +
+        //                 '<select name="cm_sub_logo_texts[' + index + '][alignment]">' +
+        //                     '<option value="left">Left</option>' +
+        //                     '<option value="center">Center</option>' +
+        //                     '<option value="right">Right</option>' +
+        //                 '</select>' +
+        //             '</p>' +
+        //         '</div>' +
+        //     '</div>';
         var newItemHTML =
-            '<div class="cm-repeater-item" style="border: 1px dashed #ccc; padding: 10px; margin-top: 10px;">' +
-            '<button type="button" class="button button-link-delete cm-remove-repeater-item" style="float: right; color: #a00;">Remove</button>' +
-            '<p><label><strong>Text Content:</strong></label><br><input type="text" name="cm_sub_logo_texts[' + index + '][text]" style="width:100%;" /></p>' +
-            '<div style="display: flex; gap: 10px;">' +
-            '<p style="flex:2;"><label>Font Family:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_family]" /></p>' +
-            '<p style="flex:1;"><label>Font Size:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_size]" /></p>' +
-            '<p style="flex:1;"><label>Font Weight:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_weight]" /></p>' +
-            '<p style="flex:1;"><label>Font Color:</label><br><input type="color" name="cm_sub_logo_texts[' + index + '][font_color]" /></p>' +
-            '<p style="flex:1;"><label>Alignment:</label><br>' +
-            '<select name="cm_sub_logo_texts[' + index + '][alignment]">' +
-            '<option value="left">Left</option>' +
-            '<option value="center">Center</option>' +
-            '<option value="right">Right</option>' +
-            '</select>' +
+    '<div class="cm-repeater-item" style="border: 1px dashed #ccc; padding: 10px; margin-top: 10px; position: relative;">' +
+        '<button type="button" class="button button-link-delete cm-remove-repeater-item" style="position: absolute; top: 5px; right: 5px; color: #a00;">Remove</button>' +
+        '<p><label><strong>Text Content:</strong></label><br><input type="text" name="cm_sub_logo_texts[' + index + '][text]" style="width:100%;" /></p>' +
+        
+        // BẮT ĐẦU KHỐI HIỂN THỊ TRÊN CÙNG 1 HÀNG
+        '<div style="display: flex; gap: 15px; align-items: flex-end;">' +
+            '<p style="flex:2; margin:0;"><label>Font Family:</label><br>' + fontSelectHTML + '</p>' +
+            '<p style="flex:1; margin:0;"><label>Font Size:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_size]" style="width:100%;" /></p>' +
+            '<p style="flex:1; margin:0;"><label>Font Weight:</label><br><input type="text" name="cm_sub_logo_texts[' + index + '][font_weight]" style="width:100%;" /></p>' +
+            '<p style="flex:1; margin:0;"><label>Font Color:</label><br><input type="color" name="cm_sub_logo_texts[' + index + '][font_color]" style="width:100%;" /></p>' +
+            '<p style="flex:1; margin:0;"><label>Alignment:</label><br>' +
+                '<select name="cm_sub_logo_texts[' + index + '][alignment]" style="width:100%;">' +
+                    '<option value="left">Left</option>' +
+                    '<option value="center" selected>Center</option>' + // Mặc định là center
+                    '<option value="right">Right</option>' +
+                '</select>' +
             '</p>' +
-            '</div>' +
-            '</div>';
-
+        '</div>' +
+        // KẾT THÚC KHỐI
+    '</div>';
         wrapper.append(newItemHTML);
     });
-
     $('#cm-sub-logo-texts-wrapper').on('click', '.cm-remove-repeater-item', function() {
         if (confirm('Are you sure you want to remove this text line?')) {
             $(this).closest('.cm-repeater-item').remove();
@@ -190,12 +219,49 @@ jQuery(document).ready(function($) {
         }
     });
     
+
     // -------------------------------------------------------------------------
     // ---- PHẦN 6: CẬP NHẬT TRƯỚC KHI LƯU (QUAN TRỌNG NHẤT) ----
     // -------------------------------------------------------------------------
-    $('form#post').on('submit', function() {
-        // Gọi hàm update ngay trước khi form được gửi đi.
+     $(document).on('click', '.editor-post-publish-button, .editor-post-save-draft', function() {
+        // Gọi hàm update ngay trước khi WordPress thực hiện hành động lưu.
         updateHiddenTocField();
     });
+
+    // -------------------------------------------------------------------------
+    // ---- PHẦN 7: TẠO VÀ TẢI MÃ QR CODE ----
+    // -------------------------------------------------------------------------
+
+    // Kiểm tra xem có phần tử để chứa QR code không
+    if ($('#qrcode-container').length > 0) {
+        // Lấy đường dẫn trang từ biến cm_data mà PHP đã truyền sang
+        var pageUrl = cm_data.page_url;
+
+        // Tạo mã QR
+        var qrcode = new QRCode(document.getElementById("qrcode-container"), {
+            text: pageUrl,
+            width: 256,
+            height: 256,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        // Xử lý nút Download
+        $('#download-qr-btn').on('click', function(e) {
+            e.preventDefault();
+            // Tìm thẻ <img> bên trong container mã QR
+            var qrImage = $('#qrcode-container').find('img').attr('src');
+            if (qrImage) {
+                // Gán đường dẫn ảnh vào nút download và tự động click
+                var link = document.createElement('a');
+                link.href = qrImage;
+                link.download = 'conference-qrcode.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+    }
 
 });

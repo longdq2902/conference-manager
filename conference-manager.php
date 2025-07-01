@@ -70,12 +70,13 @@ add_action( 'add_meta_boxes', 'cm_add_meta_boxes' );
 
 // 3. Hiển thị Meta Box cho "Conference Details"
 function cm_display_details_meta_box($post) {
+    wp_nonce_field('cm_save_meta_box_data', 'cm_details_meta_box_nonce');
     // Lấy dữ liệu đã lưu
     $time = get_post_meta($post->ID, 'cm_time', true);
     $location = get_post_meta($post->ID, 'cm_location', true);
     
-    // Thêm nonce field để bảo mật
-    wp_nonce_field('cm_save_meta_box_data', 'cm_details_meta_box_nonce');
+
+    
     ?>
     <p>
         <label for="cm_time">Time:</label><br>
@@ -132,15 +133,33 @@ function cm_display_page_settings_meta_box($post) {
     $toc_font_family = get_post_meta($post->ID, 'cm_toc_font_family', true);
     $toc_color = get_post_meta($post->ID, 'cm_toc_color', true);
     $sub_logo_texts = get_post_meta($post->ID, 'cm_sub_logo_texts', true);
+
+
+    // Tạo danh sách font
+    $available_fonts = ['' => 'Default Font'];
+    $web_safe_fonts = ['Arial', 'Verdana', 'Helvetica', 'Tahoma', 'Trebuchet MS', 'Times New Roman', 'Georgia', 'Garamond', 'Courier New', 'Brush Script MT'];
+    foreach($web_safe_fonts as $font) {
+        $available_fonts[$font] = $font;
+    }
+    $custom_fonts = get_option('cm_custom_fonts', []);
+    if (!empty($custom_fonts)) {
+        $available_fonts['--- Custom Fonts ---'] = ['disabled' => true];
+        foreach($custom_fonts as $font) {
+            $available_fonts[$font['name']] = $font['name'];
+        }
+    }
+
     ?>
 
     <div class="cm-tabs-container">
         <h2 class="nav-tab-wrapper">
-            <a href="#tab-toc-builder" class="nav-tab nav-tab-active">TOC Builder</a>
+            
             <a href="#tab-logo-title" class="nav-tab">Logo & Title</a>
             <a href="#tab-sub-logo-text" class="nav-tab">Sub-logo Texts</a>
             <a href="#tab-background" class="nav-tab">Background</a>
+            <a href="#tab-toc-builder" class="nav-tab nav-tab-active">TOC Builder</a>
             <a href="#tab-toc-style" class="nav-tab">TOC Style</a>
+            <a href="#tab-qr-code" class="nav-tab">QR Code</a> </h2>
         </h2>
 
         <div id="tab-toc-builder" class="tab-content active">
@@ -193,7 +212,15 @@ function cm_display_page_settings_meta_box($post) {
             <hr>
             <h4>Title Settings</h4>
             <p><label for="cm_logo_title_font_size">Title Font Size (e.g., 24px):</label><br><input type="text" id="cm_logo_title_font_size" name="cm_logo_title_font_size" value="<?php echo esc_attr($logo_title_size); ?>" /></p>
-            <p><label for="cm_logo_title_font_family">Title Font Family (e.g., Arial):</label><br><input type="text" id="cm_logo_title_font_family" name="cm_logo_title_font_family" value="<?php echo esc_attr($logo_title_family); ?>" /></p>
+             <p><label for="cm_logo_title_font_family">Title Font Family:</label><br>
+                <select name="cm_logo_title_font_family" id="cm_logo_title_font_family">
+                    <?php foreach ($available_fonts as $value => $label) : ?>
+                        <option value="<?php echo esc_attr($value); ?>" <?php selected($logo_title_family, $value); ?> <?php if(is_array($label) && $label['disabled']) echo 'disabled'; ?>>
+                            <?php echo is_array($label) ? $value : esc_html($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </p>
             <p><label for="cm_logo_title_font_weight">Title Font Weight:</label><br><?php $current_weight = $logo_title_weight; ?><select id="cm_logo_title_font_weight" name="cm_logo_title_font_weight">
                 <option value="normal" <?php selected($current_weight, 'normal'); ?>>Normal</option>
                 <option value="bold" <?php selected($current_weight, 'bold'); ?>>Bold</option>
@@ -216,27 +243,39 @@ function cm_display_page_settings_meta_box($post) {
             <div id="cm-sub-logo-texts-wrapper">
                 <?php
                 if (!empty($sub_logo_texts) && is_array($sub_logo_texts)) {
-                    foreach ($sub_logo_texts as $index => $text_item) {
-                        ?>
-                        <div class="cm-repeater-item">
-                            <button type="button" class="button button-link-delete cm-remove-repeater-item">Remove</button>
-                            <p><label>Text Content:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][text]" value="<?php echo esc_attr($text_item['text'] ?? ''); ?>" style="width:100%;" /></p>
-                            <p><label>Font Family:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_family]" value="<?php echo esc_attr($text_item['font_family'] ?? ''); ?>" /></p>
-                            <p><label>Font Size:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_size]" value="<?php echo esc_attr($text_item['font_size'] ?? ''); ?>" /></p>
-                            <p><label>Font Weight:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_weight]" value="<?php echo esc_attr($text_item['font_weight'] ?? ''); ?>" /></p>
-                            <p><label>Font Color:</label><br><input type="color" name="cm_sub_logo_texts[<?php echo $index; ?>][font_color]" value="<?php echo esc_attr($text_item['font_color'] ?? ''); ?>" /></p>
-                            <p>
-                                <label>Alignment:</label><br>
-                                <select name="cm_sub_logo_texts[<?php echo $index; ?>][alignment]">
-                                    <option value="left" <?php selected($text_item['alignment'] ?? '', 'left'); ?>>Left</option>
-                                    <option value="center" <?php selected($text_item['alignment'] ?? '', 'center'); ?>>Center</option>
-                                    <option value="right" <?php selected($text_item['alignment'] ?? '', 'right'); ?>>Right</option>
-                                </select>
-                            </p>
-                        </div>
-                        <?php
-                    }
-                }
+    foreach ($sub_logo_texts as $index => $text_item) {
+        ?>
+        <div class="cm-repeater-item" style="border: 1px dashed #ccc; padding: 10px; margin-top: 10px; position: relative;">
+            <button type="button" class="button button-link-delete cm-remove-repeater-item" style="position: absolute; top: 5px; right: 5px; color: #a00;">Remove</button>
+            <p><label><strong>Text Content:</strong></label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][text]" value="<?php echo esc_attr($text_item['text'] ?? ''); ?>" style="width:100%;" /></p>
+            
+            <div style="display: flex; gap: 15px; align-items: flex-end;">
+                <p style="flex:2; margin:0;">
+                    <label>Font Family:</label><br>
+                    <select name="cm_sub_logo_texts[<?php echo $index; ?>][font_family]" style="width:100%;">
+                        <?php foreach ($available_fonts as $value => $label) : ?>
+                            <option value="<?php echo esc_attr($value); ?>" <?php selected($text_item['font_family'] ?? '', $value); ?> <?php if(is_array($label) && $label['disabled']) echo 'disabled'; ?>>
+                                <?php echo is_array($label) ? $value : esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </p>
+                <p style="flex:1; margin:0;"><label>Font Size:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_size]" value="<?php echo esc_attr($text_item['font_size'] ?? ''); ?>" style="width:100%;" /></p>
+                <p style="flex:1; margin:0;"><label>Font Weight:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_weight]" value="<?php echo esc_attr($text_item['font_weight'] ?? ''); ?>" style="width:100%;" /></p>
+                <p style="flex:1; margin:0;"><label>Font Color:</label><br><input type="color" name="cm_sub_logo_texts[<?php echo $index; ?>][font_color]" value="<?php echo esc_attr($text_item['font_color'] ?? ''); ?>" style="width:100%;" /></p>
+                <p style="flex:1; margin:0;">
+                    <label>Alignment:</label><br>
+                    <select name="cm_sub_logo_texts[<?php echo $index; ?>][alignment]" style="width:100%;">
+                        <option value="left" <?php selected($text_item['alignment'] ?? '', 'left'); ?>>Left</option>
+                        <option value="center" <?php selected($text_item['alignment'] ?? '', 'center'); ?>>Center</option>
+                        <option value="right" <?php selected($text_item['alignment'] ?? '', 'right'); ?>>Right</option>
+                    </select>
+                </p>
+            </div>
+            </div>
+        <?php
+    }
+}
                 ?>
             </div>
             <button type="button" id="cm-add-repeater-item" class="button">Add Text Line</button>
@@ -260,14 +299,37 @@ function cm_display_page_settings_meta_box($post) {
                 <option value="middle" <?php selected($toc_position, 'middle'); ?>>Middle</option>
                 <option value="bottom" <?php selected($toc_position, 'bottom'); ?>>Bottom</option>
             </select></p>
+            <p>
+                <label for="cm_toc_padding">TOC Padding from Header (e.g., 20px, 5%):</label><br>
+                <input type="text" id="cm_toc_padding" name="cm_toc_padding" value="<?php echo esc_attr( get_post_meta($post->ID, 'cm_toc_padding', true) ); ?>" placeholder="Default: 0" />
+            </p>
             <p><label for="cm_alignment">TOC Alignment:</label><br><select name="cm_alignment" id="cm_alignment">
                 <option value="left" <?php selected($alignment, 'left'); ?>>Left</option>
                 <option value="center" <?php selected($alignment, 'center'); ?>>Center</option>
                 <option value="right" <?php selected($alignment, 'right'); ?>>Right</option>
             </select></p>
             <p><label for="cm_toc_font_size">Font Size (e.g., 16px):</label><br><input type="text" id="cm_toc_font_size" name="cm_toc_font_size" value="<?php echo esc_attr($toc_font_size); ?>" /></p>
-            <p><label for="cm_toc_font_family">Font Family (e.g., Arial):</label><br><input type="text" id="cm_toc_font_family" name="cm_toc_font_family" value="<?php echo esc_attr($toc_font_family); ?>" /></p>
+            <p><label for="cm_toc_font_family">Font Family (e.g., Arial):</label><br>
+                <select name="cm_toc_font_family" id="cm_toc_font_family">
+                    <?php foreach ($available_fonts as $value => $label) : ?>
+                        <option value="<?php echo esc_attr($value); ?>" <?php selected($toc_font_family, $value); ?> <?php if(is_array($label) && $label['disabled']) echo 'disabled'; ?>>
+                             <?php echo is_array($label) ? $value : esc_html($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </p>
             <p><label for="cm_toc_color">Font Color:</label><br><input type="color" id="cm_toc_color" name="cm_toc_color" value="<?php echo esc_attr($toc_color); ?>" /></p>
+        </div>
+
+         <div id="tab-qr-code" class="tab-content">
+            <h4>Conference Page QR Code</h4>
+            <p>Sử dụng mã QR này để chia sẻ đường dẫn đến trang hội nghị một cách nhanh chóng.</p>
+            <p><strong>Page Link:</strong> <code><?php echo esc_url(get_permalink($post->ID)); ?></code></p>
+            
+            <div id="qrcode-container"></div>
+            
+            <br>
+            <a href="#" id="download-qr-btn" class="button button-primary" download="conference-qr.png">Download QR Code</a>
         </div>
     </div>
     <?php
@@ -296,10 +358,7 @@ function cm_save_meta_box_data($post_id) {
             if (is_array($toc_items)) {
                 foreach ($toc_items as $item) {
                     if (is_array($item) && isset($item['doc_index']) && isset($item['name'])) {
-                        $sanitized_toc_items[] = [
-                            'doc_index' => intval($item['doc_index']),
-                            'name'      => sanitize_text_field($item['name'])
-                        ];
+                        $sanitized_toc_items[] = ['doc_index' => intval($item['doc_index']), 'name' => sanitize_text_field($item['name'])];
                     }
                 }
             }
@@ -307,7 +366,7 @@ function cm_save_meta_box_data($post_id) {
         }
     }
 
-    // 3. Xử lý lưu Repeater Text (Sub-logo Texts) - (PHẦN BỊ THIẾU TRƯỚC ĐÂY)
+    // 3. Xử lý lưu Repeater Text
     if (isset($_POST['cm_sub_logo_texts']) && is_array($_POST['cm_sub_logo_texts'])) {
         $sanitized_sub_texts = [];
         foreach ($_POST['cm_sub_logo_texts'] as $text_item) {
@@ -338,7 +397,7 @@ function cm_save_meta_box_data($post_id) {
         'cm_logo_url', 'cm_logo_position', 'cm_logo_size',
         'cm_logo_title_font_size', 'cm_logo_title_font_family', 'cm_logo_title_font_weight', 'cm_logo_title_color', 'cm_logo_title_padding',
         'cm_background', 'cm_background_style',
-        'cm_alignment', 'cm_toc_position', 'cm_toc_font_size', 'cm_toc_font_family', 'cm_toc_color'
+        'cm_alignment', 'cm_toc_position', 'cm_toc_padding', 'cm_toc_font_size', 'cm_toc_font_family', 'cm_toc_color'
     ];
     foreach ($single_fields as $field) {
         if (isset($_POST[$field])) {
@@ -349,23 +408,56 @@ function cm_save_meta_box_data($post_id) {
 add_action('save_post', 'cm_save_meta_box_data');
 
 // 7. Enqueue scripts và styles cho trang admin
+// function cm_enqueue_admin_scripts($hook) {
+//     global $post_type;
+//     if (('post.php' == $hook || 'post-new.php' == $hook) && 'conference' == $post_type) {
+//         // Enqueue WordPress media scripts
+//         wp_enqueue_media();
+//         // Enqueue jQuery UI Sortable
+//         wp_enqueue_script('jquery-ui-sortable');
+//         // THÊM DÒNG NÀY ĐỂ TẢI FILE CSS
+//         wp_enqueue_style('cm-admin-style', plugin_dir_url(__FILE__) . 'assets/css/admin.css');
+//         // Enqueue plugin's custom script
+//         wp_enqueue_script(
+//             'cm-admin-script',
+//             plugin_dir_url(__FILE__) . 'assets/js/admin.js',
+//             array('jquery', 'jquery-ui-sortable'),
+//             '1.1',
+//             true
+//         );
+//     }
+// }
+
 function cm_enqueue_admin_scripts($hook) {
-    global $post_type;
-    if (('post.php' == $hook || 'post-new.php' == $hook) && 'conference' == $post_type) {
-        // Enqueue WordPress media scripts
+    global $post;
+    if (('post.php' == $hook || 'post-new.php' == $hook) && isset($post) && 'conference' == $post->post_type) {
         wp_enqueue_media();
-        // Enqueue jQuery UI Sortable
         wp_enqueue_script('jquery-ui-sortable');
-        // THÊM DÒNG NÀY ĐỂ TẢI FILE CSS
         wp_enqueue_style('cm-admin-style', plugin_dir_url(__FILE__) . 'assets/css/admin.css');
-        // Enqueue plugin's custom script
+
+        // 1. Tải thư viện qrcode.js từ CDN
+        wp_enqueue_script(
+            'qrcode-lib',
+            'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+            [],
+            '1.0.0',
+            true
+        );
+
+        // 2. Tải file admin.js của chúng ta
         wp_enqueue_script(
             'cm-admin-script',
             plugin_dir_url(__FILE__) . 'assets/js/admin.js',
-            array('jquery', 'jquery-ui-sortable'),
-            '1.1',
+            ['jquery', 'jquery-ui-sortable', 'qrcode-lib'], // Đảm bảo qrcode-lib được tải trước
+            '1.2', // Tăng phiên bản
             true
         );
+
+        // 3. Truyền dữ liệu (đường dẫn trang) từ PHP sang JavaScript
+        $cm_data = [
+            'page_url' => get_permalink($post->ID),
+        ];
+        wp_localize_script('cm-admin-script', 'cm_data', $cm_data);
     }
 }
 add_action('admin_enqueue_scripts', 'cm_enqueue_admin_scripts');
@@ -383,4 +475,198 @@ function cm_load_conference_template($template) {
 }
 add_filter('template_include', 'cm_load_conference_template');
 
+
+
+// =========================================================================
+// == FONT MANAGEMENT SYSTEM (v2.3 - Final Fix)
+// =========================================================================
+
+/**
+ * Thêm trang "Manage Fonts" vào menu "Conferences".
+ */
+function cm_add_font_manager_page() {
+    add_submenu_page(
+        'edit.php?post_type=conference', // Slug của menu cha
+        'Font Manager',                  // Tiêu đề trang
+        'Manage Fonts',                  // Tên hiển thị trên menu
+        'manage_options',                // Quyền hạn cần thiết
+        'cm-font-manager',               // Slug của trang
+        'cm_render_font_manager_page'    // Hàm để hiển thị nội dung trang
+    );
+}
+add_action('admin_menu', 'cm_add_font_manager_page');
+
+/**
+ * SỬA LỖI: Tạm thời cho phép upload file font bằng cách can thiệp vào bộ lọc kiểm tra file.
+ */
+function cm_allow_font_upload($types, $file, $filename, $mimes) {
+    if (in_array($file['type'], ['font/ttf', 'font/otf', 'font/woff', 'font/woff2', 'application/octet-stream'])) {
+        $types['ext'] = pathinfo($filename, PATHINFO_EXTENSION);
+        $types['type'] = $file['type'];
+    }
+    return $types;
+}
+
+/**
+ * Xử lý các hành động: Upload và Xóa font.
+ */
+function cm_handle_font_actions() {
+    if (!isset($_POST['cm_font_action_nonce']) || !current_user_can('manage_options')) {
+        return;
+    }
+
+    // Xử lý hành động XÓA font
+    if (isset($_POST['action']) && $_POST['action'] == 'cm_delete_font' && isset($_POST['font_name'])) {
+        if (!wp_verify_nonce($_POST['cm_font_action_nonce'], 'cm_delete_font_' . $_POST['font_name'])) {
+            wp_die('Security check failed.');
+        }
+        $font_name_to_delete = sanitize_text_field($_POST['font_name']);
+        $custom_fonts = get_option('cm_custom_fonts', []);
+        if (isset($custom_fonts[$font_name_to_delete])) {
+            wp_delete_file($custom_fonts[$font_name_to_delete]['path']);
+            unset($custom_fonts[$font_name_to_delete]);
+            update_option('cm_custom_fonts', $custom_fonts);
+            wp_redirect(admin_url('edit.php?post_type=conference&page=cm-font-manager&message=1'));
+            exit;
+        }
+    }
+
+    // Xử lý hành động UPLOAD font
+    if (isset($_POST['action']) && $_POST['action'] == 'cm_upload_font') {
+        if (!wp_verify_nonce($_POST['cm_font_action_nonce'], 'cm_upload_font')) {
+            wp_die('Security check failed.');
+        }
+
+        if (!empty($_FILES['cm_font_file']['name'])) {
+            if (!function_exists('wp_handle_upload')) {
+                require_once(ABSPATH . 'wp-admin/includes/file.php');
+            }
+
+            // KÍCH HOẠT BỘ LỌC TẠM THỜI
+            add_filter('wp_check_filetype_and_ext', 'cm_allow_font_upload', 10, 4);
+
+            $uploaded_file = $_FILES['cm_font_file'];
+            $upload_overrides = ['test_form' => false];
+            $move_file = wp_handle_upload($uploaded_file, $upload_overrides);
+
+            // VÔ HIỆU HÓA BỘ LỌC NGAY SAU KHI UPLOAD XONG
+            remove_filter('wp_check_filetype_and_ext', 'cm_allow_font_upload', 10);
+
+            if ($move_file && !isset($move_file['error'])) {
+                $font_name = sanitize_title(pathinfo($move_file['file'], PATHINFO_FILENAME));
+                $custom_fonts = get_option('cm_custom_fonts', []);
+                $custom_fonts[$font_name] = [
+                    'name' => $font_name,
+                    'url'  => $move_file['url'],
+                    'path' => $move_file['file'],
+                ];
+                update_option('cm_custom_fonts', $custom_fonts);
+                wp_redirect(admin_url('edit.php?post_type=conference&page=cm-font-manager&message=2'));
+                exit;
+            } else {
+                $error_message = urlencode($move_file['error']);
+                wp_redirect(admin_url('edit.php?post_type=conference&page=cm-font-manager&message=3&error=' . $error_message));
+                exit;
+            }
+        } else {
+            wp_redirect(admin_url('edit.php?post_type=conference&page=cm-font-manager&message=4'));
+            exit;
+        }
+    }
+}
+add_action('admin_init', 'cm_handle_font_actions');
+
+/**
+ * Hiển thị giao diện HTML của trang quản lý font.
+ */
+function cm_render_font_manager_page() {
+    ?>
+    <div class="wrap">
+        <h1>Font Manager</h1>
+        <p>Tải lên và quản lý các font chữ tùy chỉnh cho hội nghị của bạn.</p>
+
+        <?php
+        if (isset($_GET['message'])) {
+            $messages = [
+                '1' => 'Font đã được xóa thành công.',
+                '2' => 'Font đã được tải lên thành công.',
+                '3' => 'Lỗi khi tải font lên: ' . esc_html(urldecode($_GET['error'] ?? 'Lỗi không xác định.')),
+                '4' => 'Chưa có file nào được chọn.',
+            ];
+            $message_id = $_GET['message'];
+            $is_error = in_array($message_id, ['3', '4']);
+            echo '<div class="notice ' . ($is_error ? 'notice-error' : 'notice-success') . ' is-dismissible"><p>' . $messages[$message_id] . '</p></div>';
+        }
+        ?>
+
+        <h2>Tải lên Font mới</h2>
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="cm_upload_font">
+            <?php wp_nonce_field('cm_upload_font', 'cm_font_action_nonce'); ?>
+            <p>
+                <label for="cm_font_file">Chọn file font (.ttf, .otf, .woff, .woff2):</label>
+                <input type="file" name="cm_font_file" id="cm_font_file" accept=".ttf,.otf,.woff,.woff2" required>
+            </p>
+            <?php submit_button('Tải lên Font'); ?>
+        </form>
+
+        <hr>
+
+        <h2>Các Font đã tải lên</h2>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Tên Font (Font Family)</th>
+                    <th>URL</th>
+                    <th style="width: 15%;">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $custom_fonts = get_option('cm_custom_fonts', []);
+                if (!empty($custom_fonts)) {
+                    foreach ($custom_fonts as $font) : ?>
+                        <tr>
+                            <td><strong><?php echo esc_html($font['name']); ?></strong></td>
+                            <td><code><?php echo esc_url($font['url']); ?></code></td>
+                            <td>
+                                <form method="post" onsubmit="return confirm('Bạn có chắc muốn xóa vĩnh viễn font này không?');">
+                                    <input type="hidden" name="action" value="cm_delete_font">
+                                    <input type="hidden" name="font_name" value="<?php echo esc_attr($font['name']); ?>">
+                                    <?php wp_nonce_field('cm_delete_font_' . $font['name'], 'cm_font_action_nonce'); ?>
+                                    <button type="submit" class="button button-link-delete">Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach;
+                } else {
+                    echo '<tr><td colspan="3">Chưa có font tùy chỉnh nào được tải lên.</td></tr>';
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+}
+
+/**
+ * In các quy tắc @font-face ra ngoài trang frontend.
+ */
+function cm_print_custom_font_styles() {
+    if (is_singular('conference')) {
+        $custom_fonts = get_option('cm_custom_fonts', []);
+        if (!empty($custom_fonts)) {
+            echo '<style type="text/css">';
+            foreach ($custom_fonts as $font) {
+                echo "@font-face { font-family: '" . esc_html($font['name']) . "'; src: url('" . esc_url($font['url']) . "'); font-display: swap; }";
+            }
+            echo '</style>';
+        }
+    }
+}
+add_action('wp_head', 'cm_print_custom_font_styles');
+
 ?>
+
+
+
