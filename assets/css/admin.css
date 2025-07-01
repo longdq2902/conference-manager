@@ -23,3 +23,36 @@
     padding: 0;
     vertical-align: middle;
 }
+/* Styling for Tabs */
+.cm-tabs-container .tab-content {
+    display: none; /* Ẩn tất cả các nội dung tab mặc định */
+    padding: 20px 0;
+    border-top: 1px solid #ccc;
+}
+
+.cm-tabs-container .tab-content.active {
+    display: block; /* Chỉ hiển thị tab có class 'active' */
+}
+
+/* Style cho Toc Builder */
+#toc-builder-list li {
+    background: #f9f9f9;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#toc-builder-list li .handle {
+    cursor: move;
+}
+#toc-builder-list li input {
+    flex-grow: 1;
+}
+#add-toc-item-controls {
+    margin-top: 15px;
+}
+#document-selector-wrapper {
+    margin-top: 10px;
+}

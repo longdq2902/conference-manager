@@ -1,496 +1,386 @@
 <?php
-/*
-Plugin Name: Conference Manager
-Description: Plugin to manage conferences, documents, and custom conference pages.
-Version: 1.0.0
-Author: Your Name
-License: GPL2
-*/
+/**
+ * Plugin Name: Conference Manager
+ * Description: A plugin to create and manage conferences with document catalogs.
+ * Version: 1.1
+ * Author: Your Name
+ */
 
-// Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // Exit if accessed directly.
 }
 
-// Đăng ký Custom Post Type
-function cm_register_conference_cpt() {
+// 1. Đăng ký Custom Post Type 'conference'
+function cm_register_conference_post_type() {
     $labels = array(
-        'name'               => __('Conferences', 'conference-manager'),
-        'singular_name'      => __('Conference', 'conference-manager'),
-        'menu_name'          => __('Conferences', 'conference-manager'),
-        'add_new'            => __('Add New', 'conference-manager'),
-        'add_new_item'       => __('Add New Conference', 'conference-manager'),
-        'edit_item'          => __('Edit Conference', 'conference-manager'),
-        'new_item'           => __('New Conference', 'conference-manager'),
-        'view_item'          => __('View Conference', 'conference-manager'),
-        'search_items'       => __('Search Conferences', 'conference-manager'),
-        'not_found'          => __('No conferences found', 'conference-manager'),
-        'not_found_in_trash' => __('No conferences found in Trash', 'conference-manager'),
+        'name'               => _x( 'Conferences', 'post type general name' ),
+        'singular_name'      => _x( 'Conference', 'post type singular name' ),
+        'add_new'            => _x( 'Add New', 'conference' ),
+        'add_new_item'       => __( 'Add New Conference' ),
+        'edit_item'          => __( 'Edit Conference' ),
+        'new_item'           => __( 'New Conference' ),
+        'all_items'          => __( 'All Conferences' ),
+        'view_item'          => __( 'View Conference' ),
+        'search_items'       => __( 'Search Conferences' ),
+        'not_found'          => __( 'No conferences found' ),
+        'not_found_in_trash' => __( 'No conferences found in the Trash' ),
+        'parent_item_colon'  => '',
+        'menu_name'          => 'Conferences'
     );
-
     $args = array(
-        'labels'             => $labels,
-        'public'             => true,
-        'publicly_queryable' => true,
-        'show_ui'            => true,
-        'show_in_menu'       => true,
-        'query_var'          => true,
-        'rewrite'            => array('slug' => 'conference'),
-        'capability_type'    => 'post',
-        'has_archive'        => true,
-        'hierarchical'       => false,
-        'menu_position'      => 20,
-        'supports'           => array('title', 'editor', 'thumbnail'),
-        'show_in_rest'       => true,
+        'labels'        => $labels,
+        'public'        => true,
+        'has_archive'   => true,
+        'show_in_rest'  => true,
+        'supports'      => array( 'title', 'editor', 'thumbnail' ),
+        'menu_icon'     => 'dashicons-groups',
     );
-
-    register_post_type('conference', $args);
+    register_post_type( 'conference', $args );
 }
-add_action('init', 'cm_register_conference_cpt');
+add_action( 'init', 'cm_register_conference_post_type' );
 
-// Đăng ký custom fields cho thông tin hội nghị
-function cm_register_conference_meta() {
-    register_post_meta('conference', 'cm_time', array(
-        'type'         => 'string',
-        'description'  => __('Conference Time', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-    ));
-
-    register_post_meta('conference', 'cm_location', array(
-        'type'         => 'string',
-        'description'  => __('Conference Location', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-    ));
-
-    register_post_meta('conference', 'cm_description', array(
-        'type'         => 'string',
-        'description'  => __('Conference Description', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-    ));
-}
-add_action('init', 'cm_register_conference_meta');
-
-// Đăng ký meta cho danh sách tài liệu
-function cm_register_documents_meta() {
-    register_post_meta('conference', 'cm_documents', array(
-        'type'         => 'array',
-        'description'  => __('Conference Documents', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => [],
-    ));
-}
-add_action('init', 'cm_register_documents_meta');
-
-// Đăng ký meta cho thiết lập trang hội nghị (bao gồm mục lục)
-function cm_register_page_settings_meta() {
-    register_post_meta('conference', 'cm_toc_order', array(
-        'type'         => 'array',
-        'description'  => __('Table of Contents Order', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => [],
-    ));
-
-    register_post_meta('conference', 'cm_toc_names', array(
-        'type'         => 'array',
-        'description'  => __('Table of Contents Names', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => [],
-    ));
-
-    register_post_meta('conference', 'cm_background', array(
-        'type'         => 'string',
-        'description'  => __('Conference Page Background', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-    ));
-
-    register_post_meta('conference', 'cm_background_style', array(
-        'type'         => 'string',
-        'description'  => __('Background Style', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => 'fill',
-    ));
-
-    register_post_meta('conference', 'cm_alignment', array(
-        'type'         => 'string',
-        'description'  => __('Table of Contents Alignment', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => 'center',
-    ));
-
-    register_post_meta('conference', 'cm_toc_position', array(
-        'type'         => 'string',
-        'description'  => __('Table of Contents Position', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => 'middle',
-    ));
-
-    register_post_meta('conference', 'cm_toc_font_size', array(
-        'type'         => 'string',
-        'description'  => __('Table of Contents Font Size', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => '16px',
-    ));
-
-    register_post_meta('conference', 'cm_toc_font_family', array(
-        'type'         => 'string',
-        'description'  => __('Table of Contents Font Family', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => 'Arial',
-    ));
-
-    register_post_meta('conference', 'cm_toc_color', array(
-        'type'         => 'string',
-        'description'  => __('Table of Contents Color', 'conference-manager'),
-        'single'       => true,
-        'show_in_rest' => true,
-        'default'      => '#000000',
-    ));
-}
-add_action('init', 'cm_register_page_settings_meta');
-
-// Tạo metabox cho thông tin hội nghị
-function cm_add_conference_metabox() {
+// 2. Thêm các Meta Box
+function cm_add_meta_boxes() {
     add_meta_box(
-        'cm_conference_details',
-        __('Conference Details', 'conference-manager'),
-        'cm_conference_details_callback',
+        'cm_details_meta_box',
+        'Conference Details',
+        'cm_display_details_meta_box',
         'conference',
         'normal',
         'high'
     );
+    add_meta_box(
+        'cm_documents_meta_box',
+        'Conference Documents',
+        'cm_display_documents_meta_box',
+        'conference',
+        'normal',
+        'default'
+    );
+    add_meta_box(
+        'cm_page_settings_meta_box',
+        'Conference Page Settings',
+        'cm_display_page_settings_meta_box', // Đây là hàm đã được cập nhật
+        'conference',
+        'normal',
+        'default'
+    );
 }
-add_action('add_meta_boxes', 'cm_add_conference_metabox');
+add_action( 'add_meta_boxes', 'cm_add_meta_boxes' );
 
-// Callback để hiển thị metabox thông tin hội nghị
-function cm_conference_details_callback($post) {
-    wp_nonce_field('cm_save_conference_details', 'cm_conference_nonce');
+// 3. Hiển thị Meta Box cho "Conference Details"
+function cm_display_details_meta_box($post) {
+    // Lấy dữ liệu đã lưu
     $time = get_post_meta($post->ID, 'cm_time', true);
     $location = get_post_meta($post->ID, 'cm_location', true);
-    $description = get_post_meta($post->ID, 'cm_description', true);
+    
+    // Thêm nonce field để bảo mật
+    wp_nonce_field('cm_save_meta_box_data', 'cm_details_meta_box_nonce');
     ?>
     <p>
-        <label for="cm_time"><?php _e('Time', 'conference-manager'); ?></label><br>
-        <input type="text" id="cm_time" name="cm_time" value="<?php echo esc_attr($time); ?>" style="width: 100%;">
+        <label for="cm_time">Time:</label><br>
+        <input type="text" id="cm_time" name="cm_time" value="<?php echo esc_attr($time); ?>" style="width:100%;" />
     </p>
     <p>
-        <label for="cm_location"><?php _e('Location', 'conference-manager'); ?></label><br>
-        <input type="text" id="cm_location" name="cm_location" value="<?php echo esc_attr($location); ?>" style="width: 100%;">
-    </p>
-    <p>
-        <label for="cm_description"><?php _e('Description', 'conference-manager'); ?></label><br>
-        <textarea id="cm_description" name="cm_description" style="width: 100%; height: 100px;"><?php echo esc_textarea($description); ?></textarea>
+        <label for="cm_location">Location:</label><br>
+        <input type="text" id="cm_location" name="cm_location" value="<?php echo esc_attr($location); ?>" style="width:100%;" />
     </p>
     <?php
 }
 
-// Lưu dữ liệu thông tin hội nghị
-function cm_save_conference_details($post_id) {
-    if (!isset($_POST['cm_conference_nonce']) || !wp_verify_nonce($_POST['cm_conference_nonce'], 'cm_save_conference_details')) {
-        return;
-    }
-
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-        return;
-    }
-
-    if (isset($_POST['cm_time'])) {
-        update_post_meta($post_id, 'cm_time', sanitize_text_field($_POST['cm_time']));
-    }
-    if (isset($_POST['cm_location'])) {
-        update_post_meta($post_id, 'cm_location', sanitize_text_field($_POST['cm_location']));
-    }
-    if (isset($_POST['cm_description'])) {
-        update_post_meta($post_id, 'cm_description', sanitize_textarea_field($_POST['cm_description']));
-    }
-}
-add_action('save_post', 'cm_save_conference_details');
-
-// Tạo metabox cho tài liệu
-function cm_add_documents_metabox() {
-    add_meta_box(
-        'cm_conference_documents',
-        __('Conference Documents', 'conference-manager'),
-        'cm_conference_documents_callback',
-        'conference',
-        'normal',
-        'high'
-    );
-}
-add_action('add_meta_boxes', 'cm_add_documents_metabox');
-
-// Callback để hiển thị metabox tài liệu
-function cm_conference_documents_callback($post) {
-    wp_nonce_field('cm_save_conference_documents', 'cm_documents_nonce');
-    $documents = get_post_meta($post->ID, 'cm_documents', true);
-    if (!is_array($documents)) {
-        $documents = [];
-    }
+// 4. Hiển thị Meta Box cho "Conference Documents"
+function cm_display_documents_meta_box($post) {
+    $documents = get_post_meta($post->ID, 'cm_documents', true) ?: [];
     ?>
-    <div id="cm-documents-manager">
-        <p>
-            <button type="button" class="button" id="cm-upload-document"><?php _e('Upload Document', 'conference-manager'); ?></button>
-        </p>
-        <ul id="cm-documents-list" style="list-style: none; padding: 0;">
-            <?php foreach ($documents as $index => $doc): ?>
-                <li class="cm-document-item" data-index="<?php echo $index; ?>">
-                    <input type="hidden" name="cm_documents[<?php echo $index; ?>][url]" value="<?php echo esc_attr($doc['url']); ?>">
-                    <input type="text" name="cm_documents[<?php echo $index; ?>][name]" value="<?php echo esc_attr($doc['name']); ?>" placeholder="<?php _e('Document Name', 'conference-manager'); ?>" style="width: 50%;">
-                    <span><?php echo esc_html($doc['type']); ?></span>
-                    <a href="#" class="cm-remove-document button" style="color: red;"><?php _e('Remove', 'conference-manager'); ?></a>
-                </li>
-            <?php endforeach; ?>
+    <div id="cm-documents-container">
+        <ul id="cm-documents-list">
+            <?php if (!empty($documents)) : ?>
+                <?php foreach ($documents as $index => $doc) : ?>
+                    <li>
+                        <input type="hidden" name="cm_documents[<?php echo $index; ?>][name]" value="<?php echo esc_attr($doc['name']); ?>">
+                        <input type="hidden" name="cm_documents[<?php echo $index; ?>][url]" value="<?php echo esc_url($doc['url']); ?>">
+                        <span><?php echo esc_html($doc['name']); ?></span>
+                        (<a href="<?php echo esc_url($doc['url']); ?>" target="_blank">Xem</a>)
+                        <button type="button" class="button button-link-delete remove-document">Xóa</button>
+                    </li>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </ul>
+        <button type="button" id="upload_document_button" class="button">Upload Documents</button>
     </div>
     <?php
 }
 
-// Lưu dữ liệu tài liệu
-function cm_save_conference_documents($post_id) {
-    if (!isset($_POST['cm_documents_nonce']) || !wp_verify_nonce($_POST['cm_documents_nonce'], 'cm_save_conference_documents')) {
-        return;
-    }
-
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-        return;
-    }
-
-    if (isset($_POST['cm_documents']) && is_array($_POST['cm_documents'])) {
-        $documents = [];
-        foreach ($_POST['cm_documents'] as $doc) {
-            if (!empty($doc['url']) && !empty($doc['name'])) {
-                $documents[] = [
-                    'url'  => esc_url_raw($doc['url']),
-                    'name' => sanitize_text_field($doc['name']),
-                    'type' => wp_check_filetype(basename($doc['url']))['ext'],
-                ];
-            }
-        }
-        update_post_meta($post_id, 'cm_documents', $documents);
-    } else {
-        delete_post_meta($post_id, 'cm_documents');
-    }
-}
-add_action('save_post', 'cm_save_conference_documents');
-
-// Tạo metabox cho thiết lập trang hội nghị (bao gồm mục lục)
-function cm_add_page_settings_metabox() {
-    add_meta_box(
-        'cm_conference_page_settings',
-        __('Conference Page Settings', 'conference-manager'),
-        'cm_conference_page_settings_callback',
-        'conference',
-        'normal',
-        'high'
-    );
-}
-add_action('add_meta_boxes', 'cm_add_page_settings_metabox');
-
-// Callback để hiển thị metabox thiết lập trang với mục lục và tùy chỉnh
-function cm_conference_page_settings_callback($post) {
-    wp_nonce_field('cm_save_page_settings', 'cm_page_settings_nonce');
-    $toc_order = get_post_meta($post->ID, 'cm_toc_order', true);
-    if (!is_array($toc_order)) {
-        $toc_order = [];
-    }
-    $toc_names = get_post_meta($post->ID, 'cm_toc_names', true);
-    if (!is_array($toc_names)) {
-        $toc_names = [];
-    }
+// 5. Hiển thị Meta Box cho "Conference Page Settings" (ĐÃ CẬP NHẬT)
+function cm_display_page_settings_meta_box($post) {
+    // Lấy tất cả dữ liệu meta đã lưu
+    $documents = get_post_meta($post->ID, 'cm_documents', true) ?: [];
+    $toc_items = get_post_meta($post->ID, 'cm_toc_items', true) ?: [];
     $background = get_post_meta($post->ID, 'cm_background', true);
     $background_style = get_post_meta($post->ID, 'cm_background_style', true);
+    $logo_url = get_post_meta($post->ID, 'cm_logo_url', true);
+    $logo_position = get_post_meta($post->ID, 'cm_logo_position', true);
+    $logo_size = get_post_meta($post->ID, 'cm_logo_size', true);
+    $logo_title_size = get_post_meta($post->ID, 'cm_logo_title_font_size', true);
+    $logo_title_family = get_post_meta($post->ID, 'cm_logo_title_font_family', true);
+    $logo_title_weight = get_post_meta($post->ID, 'cm_logo_title_font_weight', true);
+    $logo_title_color = get_post_meta($post->ID, 'cm_logo_title_color', true);
+    $logo_title_padding = get_post_meta($post->ID, 'cm_logo_title_padding', true);
     $alignment = get_post_meta($post->ID, 'cm_alignment', true);
     $toc_position = get_post_meta($post->ID, 'cm_toc_position', true);
     $toc_font_size = get_post_meta($post->ID, 'cm_toc_font_size', true);
     $toc_font_family = get_post_meta($post->ID, 'cm_toc_font_family', true);
     $toc_color = get_post_meta($post->ID, 'cm_toc_color', true);
-    $documents = get_post_meta($post->ID, 'cm_documents', true);
-    if (!is_array($documents)) {
-        $documents = [];
-    }
+    $sub_logo_texts = get_post_meta($post->ID, 'cm_sub_logo_texts', true);
     ?>
-    <div id="cm-page-settings">
-        <h4><?php _e('Table of Contents', 'conference-manager'); ?></h4>
-        <p><?php _e('Drag and drop to reorder the table of contents.', 'conference-manager'); ?></p>
-        <ul id="cm-toc-list" style="list-style: none; padding: 0;">
-            <?php foreach ($toc_order as $index => $doc_index): ?>
-                <?php if (isset($documents[$doc_index])): ?>
-                    <li class="cm-toc-item" data-index="<?php echo $index; ?>">
-                        <input type="hidden" name="cm_toc_order[<?php echo $index; ?>]" value="<?php echo esc_attr($doc_index); ?>">
-                        <input type="text" name="cm_toc_names[<?php echo $index; ?>]" value="<?php echo esc_attr(isset($toc_names[$index]) ? $toc_names[$index] : $documents[$doc_index]['name']); ?>" placeholder="<?php _e('Custom Name', 'conference-manager'); ?>" style="width: 50%;">
-                        <span><?php echo esc_html($documents[$doc_index]['type']); ?></span>
-                        <a href="#" class="cm-remove-toc button" style="color: red;"><?php _e('Remove', 'conference-manager'); ?></a>
-                    </li>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </ul>
-        <p>
-            <button type="button" class="button" id="cm-add-toc-item"><?php _e('Add to Table of Contents', 'conference-manager'); ?></button>
-        </p>
 
-        <h4><?php _e('Background Image', 'conference-manager'); ?></h4>
-        <p>
-            <button type="button" class="button" id="cm-upload-background"><?php _e('Upload Background', 'conference-manager'); ?></button>
-            <input type="hidden" id="cm_background" name="cm_background" value="<?php echo esc_attr($background); ?>">
-            <?php if ($background): ?>
-                <img src="<?php echo esc_url($background); ?>" style="max-width: 200px; display: block; margin-top: 10px;">
-            <?php endif; ?>
-        </p>
+    <div class="cm-tabs-container">
+        <h2 class="nav-tab-wrapper">
+            <a href="#tab-toc-builder" class="nav-tab nav-tab-active">TOC Builder</a>
+            <a href="#tab-logo-title" class="nav-tab">Logo & Title</a>
+            <a href="#tab-sub-logo-text" class="nav-tab">Sub-logo Texts</a>
+            <a href="#tab-background" class="nav-tab">Background</a>
+            <a href="#tab-toc-style" class="nav-tab">TOC Style</a>
+        </h2>
 
-        <h4><?php _e('Background Style', 'conference-manager'); ?></h4>
-        <p>
-            <select name="cm_background_style">
-                <option value="fill" <?php selected($background_style, 'fill'); ?>><?php _e('Fill', 'conference-manager'); ?></option>
-                <option value="stretch" <?php selected($background_style, 'stretch'); ?>><?php _e('Stretch', 'conference-manager'); ?></option>
-                <option value="repeat" <?php selected($background_style, 'repeat'); ?>><?php _e('Repeat', 'conference-manager'); ?></option>
-                <option value="center" <?php selected($background_style, 'center'); ?>><?php _e('Center', 'conference-manager'); ?></option>
-            </select>
-        </p>
+        <div id="tab-toc-builder" class="tab-content active">
+            <h4>Table of Contents Builder</h4>
+            <div id="toc-builder-wrapper">
+                <p>Kéo thả để sắp xếp lại mục lục. Sửa tên hiển thị nếu cần.</p>
+                <ul id="toc-builder-list">
+                    <?php
+                    if (!empty($toc_items)) {
+                        foreach ($toc_items as $item) {
+                            $doc_index = $item['doc_index'];
+                            $custom_name = $item['name'];
+                            if (isset($documents[$doc_index])) {
+                                $original_name = $documents[$doc_index]['name'];
+                                ?>
+                                <li data-doc-index="<?php echo esc_attr($doc_index); ?>">
+                                    <span class="dashicons dashicons-menu handle"></span>
+                                    <input type="text" value="<?php echo esc_attr($custom_name); ?>" placeholder="<?php echo esc_attr($original_name); ?>" />
+                                    <button type="button" class="button button-link-delete remove-toc-item"><span class="dashicons dashicons-trash"></span></button>
+                                </li>
+                                <?php
+                            }
+                        }
+                    }
+                    ?>
+                </ul>
+            </div>
+            <div id="add-toc-item-controls">
+                <button type="button" id="add-to-toc-btn" class="button"><span class="dashicons dashicons-plus-alt"></span> Thêm tài liệu vào mục lục</button>
+                <div id="document-selector-wrapper" style="display:none;">
+                    <select id="document-selector"></select>
+                    <button type="button" id="confirm-add-document-btn" class="button button-primary">Thêm</button>
+                    <button type="button" id="cancel-add-document-btn" class="button">Hủy</button>
+                </div>
+            </div>
+            <input type="hidden" name="cm_toc_items_hidden" id="cm_toc_items_hidden" value="">
+        </div>
 
-        <h4><?php _e('Table of Contents Alignment', 'conference-manager'); ?></h4>
-        <p>
-            <select name="cm_alignment">
-                <option value="left" <?php selected($alignment, 'left'); ?>><?php _e('Left', 'conference-manager'); ?></option>
-                <option value="center" <?php selected($alignment, 'center'); ?>><?php _e('Center', 'conference-manager'); ?></option>
-                <option value="right" <?php selected($alignment, 'right'); ?>><?php _e('Right', 'conference-manager'); ?></option>
-            </select>
-        </p>
+        <div id="tab-logo-title" class="tab-content">
+            <h4>Logo Settings</h4>
+            <p><label for="cm_logo_url">Logo Image:</label><br><input type="text" id="cm_logo_url" name="cm_logo_url" value="<?php echo esc_url($logo_url); ?>" style="width:70%;" /> <button type="button" id="upload_logo_button" class="button">Upload Logo</button></p>
+            <p><label for="cm_logo_position">Logo Position:</label><br><select name="cm_logo_position" id="cm_logo_position">
+                <option value="top-left" <?php selected($logo_position, 'top-left'); ?>>Top Left</option>
+                <option value="top-center" <?php selected($logo_position, 'top-center'); ?>>Top Center</option>
+                <option value="top-right" <?php selected($logo_position, 'top-right'); ?>>Top Right</option>
+                <option value="bottom-left" <?php selected($logo_position, 'bottom-left'); ?>>Bottom Left</option>
+                <option value="bottom-right" <?php selected($logo_position, 'bottom-right'); ?>>Bottom Right</option>
+            </select></p>
+            <p><label for="cm_logo_size">Logo Size (e.g., 150px, 100%):</label><br><input type="text" id="cm_logo_size" name="cm_logo_size" value="<?php echo esc_attr($logo_size); ?>" placeholder="Default: 150px" /></p>
+            <hr>
+            <h4>Title Settings</h4>
+            <p><label for="cm_logo_title_font_size">Title Font Size (e.g., 24px):</label><br><input type="text" id="cm_logo_title_font_size" name="cm_logo_title_font_size" value="<?php echo esc_attr($logo_title_size); ?>" /></p>
+            <p><label for="cm_logo_title_font_family">Title Font Family (e.g., Arial):</label><br><input type="text" id="cm_logo_title_font_family" name="cm_logo_title_font_family" value="<?php echo esc_attr($logo_title_family); ?>" /></p>
+            <p><label for="cm_logo_title_font_weight">Title Font Weight:</label><br><?php $current_weight = $logo_title_weight; ?><select id="cm_logo_title_font_weight" name="cm_logo_title_font_weight">
+                <option value="normal" <?php selected($current_weight, 'normal'); ?>>Normal</option>
+                <option value="bold" <?php selected($current_weight, 'bold'); ?>>Bold</option>
+                <option value="100" <?php selected($current_weight, '100'); ?>>100 (Thin)</option>
+                <option value="200" <?php selected($current_weight, '200'); ?>>200</option>
+                <option value="300" <?php selected($current_weight, '300'); ?>>300 (Light)</option>
+                <option value="400" <?php selected($current_weight, '400'); ?>>400 (Normal)</option>
+                <option value="500" <?php selected($current_weight, '500'); ?>>500</option>
+                <option value="600" <?php selected($current_weight, '600'); ?>>600 (Semi-bold)</option>
+                <option value="700" <?php selected($current_weight, '700'); ?>>700 (Bold)</option>
+                <option value="800" <?php selected($current_weight, '800'); ?>>800</option>
+                <option value="900" <?php selected($current_weight, '900'); ?>>900 (Black)</option>
+            </select></p>
+            <p><label for="cm_logo_title_color">Title Font Color:</label><br><input type="color" id="cm_logo_title_color" name="cm_logo_title_color" value="<?php echo esc_attr($logo_title_color); ?>" /></p>
+            <p><label for="cm_logo_title_padding">Title Padding from Logo (e.g., 10px):</label><br><input type="text" id="cm_logo_title_padding" name="cm_logo_title_padding" value="<?php echo esc_attr($logo_title_padding); ?>" /></p>
+        </div>
 
-        <h4><?php _e('Table of Contents Position', 'conference-manager'); ?></h4>
-        <p>
-            <select name="cm_toc_position">
-                <option value="top" <?php selected($toc_position, 'top'); ?>><?php _e('Top', 'conference-manager'); ?></option>
-                <option value="middle" <?php selected($toc_position, 'middle'); ?>><?php _e('Middle', 'conference-manager'); ?></option>
-                <option value="bottom" <?php selected($toc_position, 'bottom'); ?>><?php _e('Bottom', 'conference-manager'); ?></option>
-            </select>
-        </p>
+        <div id="tab-sub-logo-text" class="tab-content">
+            <h4>Sub-logo Text Lines</h4>
+            <div id="cm-sub-logo-texts-wrapper">
+                <?php
+                if (!empty($sub_logo_texts) && is_array($sub_logo_texts)) {
+                    foreach ($sub_logo_texts as $index => $text_item) {
+                        ?>
+                        <div class="cm-repeater-item">
+                            <button type="button" class="button button-link-delete cm-remove-repeater-item">Remove</button>
+                            <p><label>Text Content:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][text]" value="<?php echo esc_attr($text_item['text'] ?? ''); ?>" style="width:100%;" /></p>
+                            <p><label>Font Family:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_family]" value="<?php echo esc_attr($text_item['font_family'] ?? ''); ?>" /></p>
+                            <p><label>Font Size:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_size]" value="<?php echo esc_attr($text_item['font_size'] ?? ''); ?>" /></p>
+                            <p><label>Font Weight:</label><br><input type="text" name="cm_sub_logo_texts[<?php echo $index; ?>][font_weight]" value="<?php echo esc_attr($text_item['font_weight'] ?? ''); ?>" /></p>
+                            <p><label>Font Color:</label><br><input type="color" name="cm_sub_logo_texts[<?php echo $index; ?>][font_color]" value="<?php echo esc_attr($text_item['font_color'] ?? ''); ?>" /></p>
+                            <p>
+                                <label>Alignment:</label><br>
+                                <select name="cm_sub_logo_texts[<?php echo $index; ?>][alignment]">
+                                    <option value="left" <?php selected($text_item['alignment'] ?? '', 'left'); ?>>Left</option>
+                                    <option value="center" <?php selected($text_item['alignment'] ?? '', 'center'); ?>>Center</option>
+                                    <option value="right" <?php selected($text_item['alignment'] ?? '', 'right'); ?>>Right</option>
+                                </select>
+                            </p>
+                        </div>
+                        <?php
+                    }
+                }
+                ?>
+            </div>
+            <button type="button" id="cm-add-repeater-item" class="button">Add Text Line</button>
+        </div>
 
-        <h4><?php _e('Table of Contents Font Settings', 'conference-manager'); ?></h4>
-        <p>
-            <label for="cm_toc_font_size"><?php _e('Font Size', 'conference-manager'); ?></label><br>
-            <input type="text" id="cm_toc_font_size" name="cm_toc_font_size" value="<?php echo esc_attr($toc_font_size); ?>" placeholder="e.g., 16px" style="width: 100px;">
-        </p>
-        <p>
-            <label for="cm_toc_font_family"><?php _e('Font Family', 'conference-manager'); ?></label><br>
-            <input type="text" id="cm_toc_font_family" name="cm_toc_font_family" value="<?php echo esc_attr($toc_font_family); ?>" placeholder="e.g., Arial" style="width: 200px;">
-        </p>
-        <p>
-            <label for="cm_toc_color"><?php _e('Color', 'conference-manager'); ?></label><br>
-            <input type="color" id="cm_toc_color" name="cm_toc_color" value="<?php echo esc_attr($toc_color); ?>" style="width: 100px;">
-        </p>
+        <div id="tab-background" class="tab-content">
+            <h4>Background Settings</h4>
+            <p><label for="cm_background">Background Image:</label><br><input type="text" id="cm_background" name="cm_background" value="<?php echo esc_url($background); ?>" style="width:70%;" /> <button type="button" id="upload_background_button" class="button">Upload Image</button></p>
+            <p><label for="cm_background_style">Background Style:</label><br><select name="cm_background_style" id="cm_background_style">
+                <option value="fill" <?php selected($background_style, 'fill'); ?>>Fill</option>
+                <option value="stretch" <?php selected($background_style, 'stretch'); ?>>Stretch</option>
+                <option value="repeat" <?php selected($background_style, 'repeat'); ?>>Repeat</option>
+                <option value="center" <?php selected($background_style, 'center'); ?>>Center</option>
+            </select></p>
+        </div>
+        
+        <div id="tab-toc-style" class="tab-content">
+            <h4>Table of Contents (TOC) Style</h4>
+            <p><label for="cm_toc_position">TOC Position:</label><br><select name="cm_toc_position" id="cm_toc_position">
+                <option value="top" <?php selected($toc_position, 'top'); ?>>Top</option>
+                <option value="middle" <?php selected($toc_position, 'middle'); ?>>Middle</option>
+                <option value="bottom" <?php selected($toc_position, 'bottom'); ?>>Bottom</option>
+            </select></p>
+            <p><label for="cm_alignment">TOC Alignment:</label><br><select name="cm_alignment" id="cm_alignment">
+                <option value="left" <?php selected($alignment, 'left'); ?>>Left</option>
+                <option value="center" <?php selected($alignment, 'center'); ?>>Center</option>
+                <option value="right" <?php selected($alignment, 'right'); ?>>Right</option>
+            </select></p>
+            <p><label for="cm_toc_font_size">Font Size (e.g., 16px):</label><br><input type="text" id="cm_toc_font_size" name="cm_toc_font_size" value="<?php echo esc_attr($toc_font_size); ?>" /></p>
+            <p><label for="cm_toc_font_family">Font Family (e.g., Arial):</label><br><input type="text" id="cm_toc_font_family" name="cm_toc_font_family" value="<?php echo esc_attr($toc_font_family); ?>" /></p>
+            <p><label for="cm_toc_color">Font Color:</label><br><input type="color" id="cm_toc_color" name="cm_toc_color" value="<?php echo esc_attr($toc_color); ?>" /></p>
+        </div>
     </div>
     <?php
 }
 
-// Lưu dữ liệu thiết lập trang (bao gồm mục lục và tùy chỉnh)
-function cm_save_page_settings($post_id) {
-    if (!isset($_POST['cm_page_settings_nonce']) || !wp_verify_nonce($_POST['cm_page_settings_nonce'], 'cm_save_page_settings')) {
+// 6. Lưu dữ liệu từ Meta Box (ĐÃ CẬP NHẬT)
+function cm_save_meta_box_data($post_id) {
+    // 1. Kiểm tra Nonce, quyền và các hành động tự động của WordPress
+    if (!isset($_POST['cm_details_meta_box_nonce']) || !wp_verify_nonce($_POST['cm_details_meta_box_nonce'], 'cm_save_meta_box_data')) {
         return;
     }
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) { return; }
+    if (wp_is_post_revision($post_id)) { return; }
+    if (!current_user_can('edit_post', $post_id)) { return; }
 
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-        return;
-    }
+    // --- BẮT ĐẦU QUÁ TRÌNH LƯU TRỮ AN TOÀN ---
 
-    // Lưu thứ tự mục lục
-    if (isset($_POST['cm_toc_order']) && is_array($_POST['cm_toc_order'])) {
-        $toc_order = array_map('intval', array_keys($_POST['cm_toc_order'])); // Lấy chỉ số của tài liệu
-        update_post_meta($post_id, 'cm_toc_order', $toc_order);
-    } else {
-        delete_post_meta($post_id, 'cm_toc_order');
-    }
-
-    // Lưu tên tùy chỉnh cho mục lục
-    if (isset($_POST['cm_toc_names']) && is_array($_POST['cm_toc_names'])) {
-        $toc_names = [];
-        foreach ($_POST['cm_toc_names'] as $index => $name) {
-            $toc_names[$index] = sanitize_text_field($name);
+    // 2. Xử lý lưu Mục lục (TOC)
+    if (isset($_POST['cm_toc_items_hidden'])) {
+        if (empty($_POST['cm_toc_items_hidden'])) {
+            delete_post_meta($post_id, 'cm_toc_items');
+        } else {
+            $toc_items_json = stripslashes($_POST['cm_toc_items_hidden']);
+            $toc_items = json_decode($toc_items_json, true);
+            $sanitized_toc_items = [];
+            if (is_array($toc_items)) {
+                foreach ($toc_items as $item) {
+                    if (is_array($item) && isset($item['doc_index']) && isset($item['name'])) {
+                        $sanitized_toc_items[] = [
+                            'doc_index' => intval($item['doc_index']),
+                            'name'      => sanitize_text_field($item['name'])
+                        ];
+                    }
+                }
+            }
+            update_post_meta($post_id, 'cm_toc_items', $sanitized_toc_items);
         }
-        update_post_meta($post_id, 'cm_toc_names', $toc_names);
+    }
+
+    // 3. Xử lý lưu Repeater Text (Sub-logo Texts) - (PHẦN BỊ THIẾU TRƯỚC ĐÂY)
+    if (isset($_POST['cm_sub_logo_texts']) && is_array($_POST['cm_sub_logo_texts'])) {
+        $sanitized_sub_texts = [];
+        foreach ($_POST['cm_sub_logo_texts'] as $text_item) {
+            $sanitized_item = [];
+            $sanitized_item['text'] = isset($text_item['text']) ? sanitize_text_field($text_item['text']) : '';
+            $sanitized_item['font_family'] = isset($text_item['font_family']) ? sanitize_text_field($text_item['font_family']) : '';
+            $sanitized_item['font_size'] = isset($text_item['font_size']) ? sanitize_text_field($text_item['font_size']) : '';
+            $sanitized_item['font_weight'] = isset($text_item['font_weight']) ? sanitize_text_field($text_item['font_weight']) : '';
+            $sanitized_item['font_color'] = isset($text_item['font_color']) ? sanitize_hex_color($text_item['font_color']) : '';
+            $sanitized_item['alignment'] = isset($text_item['alignment']) ? sanitize_text_field($text_item['alignment']) : 'left';
+            $sanitized_sub_texts[] = $sanitized_item;
+        }
+        update_post_meta($post_id, 'cm_sub_logo_texts', $sanitized_sub_texts);
     } else {
-        delete_post_meta($post_id, 'cm_toc_names');
+        delete_post_meta($post_id, 'cm_sub_logo_texts');
     }
 
-    // Lưu hình nền
-    if (isset($_POST['cm_background'])) {
-        update_post_meta($post_id, 'cm_background', esc_url_raw($_POST['cm_background']));
+    // 4. Xử lý lưu danh sách tài liệu
+    if (isset($_POST['cm_documents']) && is_array($_POST['cm_documents'])) {
+        update_post_meta($post_id, 'cm_documents', $_POST['cm_documents']);
+    } else {
+        delete_post_meta($post_id, 'cm_documents');
     }
 
-    // Lưu kiểu hiển thị hình nền
-    if (isset($_POST['cm_background_style'])) {
-        update_post_meta($post_id, 'cm_background_style', sanitize_text_field($_POST['cm_background_style']));
-    }
-
-    // Lưu căn chỉnh mục lục
-    if (isset($_POST['cm_alignment'])) {
-        update_post_meta($post_id, 'cm_alignment', sanitize_text_field($_POST['cm_alignment']));
-    }
-
-    // Lưu vị trí mục lục
-    if (isset($_POST['cm_toc_position'])) {
-        update_post_meta($post_id, 'cm_toc_position', sanitize_text_field($_POST['cm_toc_position']));
-    }
-
-    // Lưu cỡ chữ
-    if (isset($_POST['cm_toc_font_size'])) {
-        update_post_meta($post_id, 'cm_toc_font_size', sanitize_text_field($_POST['cm_toc_font_size']));
-    }
-
-    // Lưu font chữ
-    if (isset($_POST['cm_toc_font_family'])) {
-        update_post_meta($post_id, 'cm_toc_font_family', sanitize_text_field($_POST['cm_toc_font_family']));
-    }
-
-    // Lưu màu chữ
-    if (isset($_POST['cm_toc_color'])) {
-        update_post_meta($post_id, 'cm_toc_color', sanitize_hex_color($_POST['cm_toc_color']));
+    // 5. Xử lý lưu TẤT CẢ các trường cài đặt đơn lẻ còn lại
+    $single_fields = [
+        'cm_time', 'cm_location',
+        'cm_logo_url', 'cm_logo_position', 'cm_logo_size',
+        'cm_logo_title_font_size', 'cm_logo_title_font_family', 'cm_logo_title_font_weight', 'cm_logo_title_color', 'cm_logo_title_padding',
+        'cm_background', 'cm_background_style',
+        'cm_alignment', 'cm_toc_position', 'cm_toc_font_size', 'cm_toc_font_family', 'cm_toc_color'
+    ];
+    foreach ($single_fields as $field) {
+        if (isset($_POST[$field])) {
+            update_post_meta($post_id, $field, sanitize_text_field($_POST[$field]));
+        }
     }
 }
-add_action('save_post', 'cm_save_page_settings');
+add_action('save_post', 'cm_save_meta_box_data');
 
-// Đăng ký scripts và styles
+// 7. Enqueue scripts và styles cho trang admin
 function cm_enqueue_admin_scripts($hook) {
     global $post_type;
-    if ($post_type !== 'conference' || !in_array($hook, ['post.php', 'post-new.php'])) {
-        return;
+    if (('post.php' == $hook || 'post-new.php' == $hook) && 'conference' == $post_type) {
+        // Enqueue WordPress media scripts
+        wp_enqueue_media();
+        // Enqueue jQuery UI Sortable
+        wp_enqueue_script('jquery-ui-sortable');
+        // THÊM DÒNG NÀY ĐỂ TẢI FILE CSS
+        wp_enqueue_style('cm-admin-style', plugin_dir_url(__FILE__) . 'assets/css/admin.css');
+        // Enqueue plugin's custom script
+        wp_enqueue_script(
+            'cm-admin-script',
+            plugin_dir_url(__FILE__) . 'assets/js/admin.js',
+            array('jquery', 'jquery-ui-sortable'),
+            '1.1',
+            true
+        );
     }
-
-    wp_enqueue_media();
-    wp_enqueue_script('jquery-ui-sortable');
-    wp_enqueue_script('cm-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', ['jquery', 'jquery-ui-sortable'], '1.0.2', true);
-    wp_enqueue_style('cm-admin-css', plugin_dir_url(__FILE__) . 'assets/css/admin.css', [], '1.0.2');
-
-    // Truyền dữ liệu documents sang JavaScript
-    $documents = get_post_meta(get_the_ID(), 'cm_documents', true);
-    if (!is_array($documents)) {
-        $documents = [];
-    }
-    wp_localize_script('cm-admin-js', 'cmData', [
-        'documents' => $documents,
-        'nonce'     => wp_create_nonce('cm_page_settings_nonce'),
-    ]);
 }
 add_action('admin_enqueue_scripts', 'cm_enqueue_admin_scripts');
 
-// Thêm vào cuối file conference-manager.php
-function cm_enqueue_frontend_styles() {
-    wp_enqueue_style('cm-frontend-css', plugin_dir_url(__FILE__) . 'assets/css/frontend.css', [], '1.0.0');
+// 8. Tải template cho trang frontend
+function cm_load_conference_template($template) {
+    global $post;
+    if ($post->post_type == 'conference' && is_singular()) {
+        $plugin_template = plugin_dir_path(__FILE__) . 'single-conference.php';
+        if (file_exists($plugin_template)) {
+            return $plugin_template;
+        }
+    }
+    return $template;
 }
-add_action('wp_enqueue_scripts', 'cm_enqueue_frontend_styles');
+add_filter('template_include', 'cm_load_conference_template');
 
-// Thêm vào cuối file conference-manager.php
-function cm_enqueue_frontend_scripts() {
-    wp_enqueue_script('cm-frontend-js', plugin_dir_url(__FILE__) . 'assets/js/frontend.js', ['jquery'], '1.0.0', true);
-}
-add_action('wp_enqueue_scripts', 'cm_enqueue_frontend_scripts');
+?>
